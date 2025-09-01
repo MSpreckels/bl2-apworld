@@ -1,5 +1,10 @@
 from worlds.AutoWorld import World
 from worlds.LauncherComponents import Component, components, launch as launch_component, Type
+from .Locations import location_name_to_id
+from .Regions import create_regions
+from .Rules import set_rules
+from .Items import BL2Item, BL2ItemData, get_items_by_category, item_name_groups, item_name_to_id, create_item
+from typing import List
 
 def launch_client(*args: str):
     from .Client import launch
@@ -17,20 +22,36 @@ class BL2World(World):
     """
     
     game = "Borderlands 2"
-    item_name_to_id = {}
-    location_name_to_id = {}
+    item_name_to_id = item_name_to_id
+    location_name_to_id = location_name_to_id
+    item_name_groups = item_name_groups
+    fillers = {}
+    fillers.update(get_items_by_category("Item"))
+
+    def generate_early(self):
+        pass
     
     def create_regions(self):
-        pass
-    
-    def create_items(self):
-        pass
+        create_regions(self)
     
     def set_rules(self):
         pass
+        # set_rules(self)
     
-    def create_item(self, name: str):
-        pass
+    def create_items(self):
+        item_pool: List[BL2Item] = []
+
+        total_locations = len(self.multiworld.get_unfilled_locations(self.player))
+
+        self.get_location("Kill Knuckle Dragger").place_locked_item(create_item(self, "Victory"))
+
+        item_pool.append(create_item(self, "Filler1"))
+        item_pool.append(create_item(self, "Filler2"))
+
+        self.multiworld.itempool += item_pool
     
     def fill_slot_data(self):
-        return {}
+        return {
+            "seed": self.multiworld.seed,
+            "player_name": self.player_name
+        }

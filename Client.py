@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import json
 from CommonClient import CommonContext, gui_enabled, ClientCommandProcessor, logger, get_base_parser, server_loop
 from NetUtils import NetworkItem
 
@@ -50,16 +51,64 @@ class BL2Context(CommonContext):
         if cmd == "Connected":
             logger.info("Connected to Archipelago server!")
             self.game_connected = True
-            
-            # Write slot data configuration files
-            if 'slot_data' in args:
-                for key, value in args['slot_data'].items():
-                    try:
-                        with open(os.path.join(self.game_communication_path, f"{key}.cfg"), 'w') as f:
-                            f.write(str(value))
-                    except OSError:
-                        logger.warning(f"Could not write config file: {key}.cfg")
+
+            self.seed_path = os.path.join(self.game_communication_path, str(args['slot_data'].get("seed")))
+            if not os.path.exists(self.game_communication_path):
+                os.makedirs(self.game_communication_path)
+
+            config = {
+                "player_name": self.auth,
+                "seed": args['slot_data'].get("seed")
+            }
+            config_path = os.path.join(self.seed_path, "config.json")
+
+            if not os.path.exists(config_path):
+                try:
+                    with open(config_path, 'w') as f:
+                        f.write(json.dumps(config))
+                except OSError:
+                    logger.warning(f"Could not write config file: config.json")
                         
+            savefile_bindings_path = os.path.join(self.game_communication_path, "savefile_bindings.json")
+            savefile_binding = {
+                "seed": args['slot_data'].get("seed"),
+                "save_file": ""
+            }
+            if not os.path.exists(savefile_bindings_path):
+                savefile_bindings = [
+                    savefile_binding
+                ]
+
+                try:
+                    with open(savefile_bindings_path, 'w') as f:
+                        json.dump(savefile_bindings, f)
+                    
+                    logger.info("Created entry in savefile_bindings.json")
+
+                except OSError:
+                    logger.warning(f"Could not write file: {savefile_bindings_path}")
+            else:
+                savefile_bindings = []
+                try:
+                    with open(savefile_bindings_path, 'r') as f:
+                        savefile_bindings = json.load(f)
+                except OSError:
+                    logger.warning(f"Could not read file: {savefile_bindings_path}")
+                
+                binding = {}
+                for b in savefile_bindings:
+                    if b["seed"] == savefile_binding["seed"]:
+                        binding = b
+                        break
+
+                if not binding:
+                    savefile_bindings.append(savefile_binding)
+                else:
+                    if not binding["save_file"]:
+                        logger.info(f"Seed is not connected to any savefile. Please open Borderlands 2 and start a game with a character.")
+                    else:
+                        logger.info(f"Seed is connected to {binding["save_file"]}")
+
         elif cmd == "ReceivedItems":
             start_index = args["index"]
             if start_index != len(self.items_received):
