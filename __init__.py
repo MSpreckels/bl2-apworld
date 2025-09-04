@@ -26,7 +26,7 @@ class BL2World(World):
     location_name_to_id = location_name_to_id
     item_name_groups = item_name_groups
     fillers = {}
-    fillers.update(get_items_by_category("Item"))
+    fillers.update(get_items_by_category("Filler"))
 
     def generate_early(self):
         pass
@@ -35,18 +35,23 @@ class BL2World(World):
         create_regions(self)
     
     def set_rules(self):
-        pass
-        # set_rules(self)
+        set_rules(self)
     
     def create_items(self):
         item_pool: List[BL2Item] = []
 
         total_locations = len(self.multiworld.get_unfilled_locations(self.player))
 
-        self.get_location("Kill Knuckle Dragger").place_locked_item(create_item(self, "Victory"))
+        allstate = self.multiworld.get_all_state(False)
+        print(self.multiworld.get_reachable_locations(allstate))
 
-        item_pool.append(create_item(self, "Filler1"))
-        item_pool.append(create_item(self, "Filler2"))
+        self.get_location("Kill The Warrior").place_locked_item(create_item(self, "Victory"))
+
+        # for i in range(18):
+        #     item_pool.append(create_item(self, "Main Quest"))
+
+        while len(item_pool) < total_locations:
+            item_pool.append(create_item(self, "Skillpoint"))
 
         self.multiworld.itempool += item_pool
     

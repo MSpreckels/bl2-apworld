@@ -4,7 +4,7 @@ import os
 import json
 from CommonClient import CommonContext, gui_enabled, ClientCommandProcessor, logger, get_base_parser, server_loop
 from NetUtils import NetworkItem
-
+from .Locations import lookup_id_to_name
 
 class BL2CommandProcessor(ClientCommandProcessor):
     def _cmd_bl2(self):
@@ -53,8 +53,8 @@ class BL2Context(CommonContext):
             self.game_connected = True
 
             self.seed_path = os.path.join(self.game_communication_path, str(args['slot_data'].get("seed")))
-            if not os.path.exists(self.game_communication_path):
-                os.makedirs(self.game_communication_path)
+            if not os.path.exists(self.seed_path):
+                os.makedirs(self.seed_path)
 
             config = {
                 "player_name": self.auth,
@@ -68,46 +68,12 @@ class BL2Context(CommonContext):
                         f.write(json.dumps(config))
                 except OSError:
                     logger.warning(f"Could not write config file: config.json")
-                        
-            savefile_bindings_path = os.path.join(self.game_communication_path, "savefile_bindings.json")
+            
             savefile_binding = {
                 "seed": args['slot_data'].get("seed"),
                 "save_file": ""
             }
-            if not os.path.exists(savefile_bindings_path):
-                savefile_bindings = [
-                    savefile_binding
-                ]
-
-                try:
-                    with open(savefile_bindings_path, 'w') as f:
-                        json.dump(savefile_bindings, f)
-                    
-                    logger.info("Created entry in savefile_bindings.json")
-
-                except OSError:
-                    logger.warning(f"Could not write file: {savefile_bindings_path}")
-            else:
-                savefile_bindings = []
-                try:
-                    with open(savefile_bindings_path, 'r') as f:
-                        savefile_bindings = json.load(f)
-                except OSError:
-                    logger.warning(f"Could not read file: {savefile_bindings_path}")
-                
-                binding = {}
-                for b in savefile_bindings:
-                    if b["seed"] == savefile_binding["seed"]:
-                        binding = b
-                        break
-
-                if not binding:
-                    savefile_bindings.append(savefile_binding)
-                else:
-                    if not binding["save_file"]:
-                        logger.info(f"Seed is not connected to any savefile. Please open Borderlands 2 and start a game with a character.")
-                    else:
-                        logger.info(f"Seed is connected to {binding["save_file"]}")
+            self.update_savefile_bindings(savefile_binding)
 
         elif cmd == "ReceivedItems":
             start_index = args["index"]
@@ -155,58 +121,128 @@ class BL2Context(CommonContext):
                     except OSError:
                         pass
 
-    async def game_watcher(self):
-        """Main game watching loop - monitors for location checks from BL2 mod"""
-        logger.info("BL2 Game Watcher started")
+    def update_savefile_bindings(self, savefile_binding):
+        savefile_bindings_path = os.path.join(self.game_communication_path, "savefile_bindings.json")
+        # if savefile bindings file does not exist create one with the current seed
+        if not os.path.exists(savefile_bindings_path):
+            savefile_bindings = [
+                savefile_binding
+            ]
+            
+            create_or_replace_file(savefile_bindings_path, savefile_bindings)
+            return
+
+        # if it does exist read the current config and update it
+        savefile_bindings = []
+        try:
+            with open(savefile_bindings_path, 'r') as f:
+                savefile_bindings = json.load(f)
+        except OSError:
+            logger.warning(f"Could not read file: {savefile_bindings_path}")
         
-        while not self.exit_event.is_set():
-            if self.game_connected:
-                sending = []
-                victory = False
-                
-                # Check for files in communication directory
-                try:
-                    for root, dirs, files in os.walk(self.game_communication_path):
-                        for file in files:
-                            # Location check files (format: send12345)
-                            if file.startswith("send") and len(file) > 4:
-                                try:
-                                    location_id = int(file[4:])  # Extract ID from filename
-                                    if location_id not in self.checked_locations:
-                                        sending.append(location_id)
-                                        logger.info(f"Found location check: {location_id}")
-                                except ValueError:
-                                    # Invalid location ID format
-                                    pass
-                            
-                            # Victory condition file
-                            elif file == "victory":
-                                victory = True
-                                logger.info("Victory condition detected!")
-                
-                    # Send location checks to server
-                    if sending:
-                        await self.send_msgs([{"cmd": "LocationChecks", "locations": sending}])
-                        # Clean up processed location files
-                        for location_id in sending:
-                            try:
-                                os.remove(os.path.join(self.game_communication_path, f"send{location_id}"))
-                            except OSError:
-                                pass
-                    
-                    # Handle victory
-                    if victory:
-                        await self.send_msgs([{"cmd": "StatusUpdate", "status": 30}])  # CLIENT_GOAL
+        binding = {}
+        for b in savefile_bindings:
+            if b["seed"] == savefile_binding["seed"]:
+                binding = b
+                break
+
+        if not binding:
+            savefile_bindings.append(savefile_binding)
+            create_or_replace_file(savefile_bindings_path, savefile_bindings)
+        else:
+            if not binding["save_file"]:
+                logger.info(f"Seed is not connected to any savefile. Please open Borderlands 2 and start a game with a character.")
+            else:
+                logger.info(f"Seed is connected to {binding["save_file"]}")
+
+
+def create_or_replace_file(path, content):
+    if os.path.exists(path):
+        os.remove(path)
+
+    try:
+        with open(path, 'w') as f:
+            json.dump(content, f)
+        
+        logger.info(f"Created file in {path}")
+
+    except OSError:
+        logger.warning(f"Could not write file: {path}")
+
+def convert_json_to_map(filepath):
+    jsonmap = {}
+    try:
+        with open(filepath, 'r') as f:
+            jsonmap = json.load(f)
+    except OSError:
+        logger.warning(f"Could not read file: {filepath}")
+    
+    return jsonmap
+
+async def game_watcher(ctx: BL2Context):
+    """Main game watching loop - monitors for location checks from BL2 mod"""
+    logger.info("BL2 Game Watcher started")
+    
+    while not ctx.exit_event.is_set():
+        if ctx.game_connected:
+            if ctx.syncing == True:
+                sync_msg = [{'cmd': 'Sync'}]
+                if ctx.locations_checked:
+                    sync_msg.append({"cmd": "LocationChecks", "locations": list(ctx.locations_checked)})
+                await ctx.send_msgs(sync_msg)
+                ctx.syncing = False
+
+            sending = []
+            victory = False
+            
+            # Check for files in communication directory
+            try:
+                for root, dirs, files in os.walk(ctx.seed_path):
+                    for file in files:
+                        # logger.info(f"DEBUG {file}!")
+                        # Location check files (format: send12345)
+                        if file.startswith("check"):
+                            # logger.info(f"Found check {file}")
+                            json = convert_json_to_map(os.path.join(root, file))
+                            sending.append(json["id"])
+                        if file == "victory":
+                            victory = True
+                            logger.info(f"DEBUG found vic!")
+                # Send location checks to server
+                if sending:
+                    # logger.info(f"DEBUG before location_checks {sending}")
+
+                    ctx.locations_checked.update(sending)
+
+                    await ctx.send_msgs([{"cmd": "LocationChecks", "locations": sending}])
+                    # await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
+
+                    # logger.info("DEBUG after location_checks")
+
+                    # Clean up processed location files
+                    for loc_id in sending:
                         try:
-                            os.remove(os.path.join(self.game_communication_path, "victory"))
+                            # logger.info(f"DEBUG try cleanup {loc_id}")
+
+                            os.remove(os.path.join(ctx.seed_path, f"check{loc_id}.json"))
                         except OSError:
                             pass
-                            
-                except OSError:
-                    # Directory access error, continue
-                    pass
-            
-            await asyncio.sleep(0.1)  # Poll every 100ms like other Archipelago clients
+                
+                # Handle victory
+                if not ctx.finished_game and victory:
+                    logger.info(f"DEBUG vic!")
+                    await self.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])  # CLIENT_GOAL
+                    ctx.finished_game = True
+                    try:
+                        os.remove(os.path.join(self.seed_path, "victory"))
+                    except OSError:
+                        pass
+                        
+            except OSError:
+                # Directory access error, continue
+                pass
+        
+        await asyncio.sleep(0.1)  # Poll every 100ms like other Archipelago clients
 
 
 async def main(args):
@@ -215,7 +251,7 @@ async def main(args):
 
     ctx = BL2Context(args.connect, args.password)
     ctx.server_task = asyncio.create_task(server_loop(ctx), name="server loop")
-    ctx.game_watcher_task = asyncio.create_task(ctx.game_watcher(), name="game watcher")
+    ctx.game_watcher_task = asyncio.create_task(game_watcher(ctx), name="game watcher")
 
     if gui_enabled:
         ctx.run_gui()

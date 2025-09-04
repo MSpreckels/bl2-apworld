@@ -11,7 +11,6 @@ class BL2ItemData(NamedTuple):
     code: int
     classification: ItemClassification = ItemClassification.filler
     max_quantity: int = 1
-    weight: int = 1
 
 def get_items_by_category(category: str) -> Dict[str, BL2ItemData]:
     item_dict: Dict[str, BL2ItemData] = {}
@@ -23,9 +22,9 @@ def get_items_by_category(category: str) -> Dict[str, BL2ItemData]:
 
 item_table: Dict[str, BL2ItemData] = { 
     "Victory": BL2ItemData("VIC", code = 333_0000, classification = ItemClassification.progression, ),
-    "Filler1": BL2ItemData("Item", code = 333_0001, classification = ItemClassification.filler, ),
-    "Filler2": BL2ItemData("Item", code = 333_0002, classification = ItemClassification.filler, ),
-    "Filler3": BL2ItemData("Item", code = 333_0002, classification = ItemClassification.filler, ),
+    "Main Quest": BL2ItemData("Quest", code = 333_0000, classification = ItemClassification.progression, max_quantity = 18),
+    "Skillpoint": BL2ItemData("Item", code = 333_0001, classification = ItemClassification.filler, max_quantity = 35),
+    # "Skillpoint Fill": BL2ItemData("Filler", code = 333_0001, classification = ItemClassification.filler, max_quantity = 100),
 }
 
 item_name_groups: Dict[str, Set[str]] = {}

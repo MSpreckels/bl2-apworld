@@ -6,4 +6,4 @@ def set_rules(bl2world):
     player = bl2world.player
     multiworld = bl2world.multiworld
 
-    multiworld.completion_condition[player] = lambda state: state.has("Victory", player)
+    bl2world.multiworld.completion_condition[bl2world.player] = lambda state: state.has("Victory", bl2world.player)
