@@ -1,10 +1,10 @@
 from worlds.AutoWorld import World
 from worlds.LauncherComponents import Component, components, launch as launch_component, Type
-from .Locations import location_name_to_id
 from .Regions import create_regions
 from .Rules import set_rules
 from .Items import BL2Item, BL2ItemData, get_items_by_category, item_name_groups, item_name_to_id, create_item
 from typing import List
+from .shared.bl2_data import create_name_to_id_lookup_table
 
 def launch_client(*args: str):
     from .Client import launch
@@ -23,7 +23,7 @@ class BL2World(World):
     
     game = "Borderlands 2"
     item_name_to_id = item_name_to_id
-    location_name_to_id = location_name_to_id
+    location_name_to_id = create_name_to_id_lookup_table()
     item_name_groups = item_name_groups
     fillers = {}
     fillers.update(get_items_by_category("Filler"))
@@ -50,7 +50,7 @@ class BL2World(World):
         # for i in range(18):
         #     item_pool.append(create_item(self, "Main Quest"))
 
-        while len(item_pool) < total_locations:
+        while len(item_pool) < total_locations-1:
             item_pool.append(create_item(self, "Skillpoint"))
 
         self.multiworld.itempool += item_pool

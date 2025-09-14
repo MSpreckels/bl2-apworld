@@ -1,0 +1,38 @@
+{
+    "version": "2.0.0",
+    "command": "zsh",
+    "args": [
+        "-c"
+    ],
+    "tasks": [
+        // rm -f /mnt/SSD/Archipelago/Archipelago/custom_worlds/bl2-apworld.apworld && 
+        // zip bl2-apworld.apworld bl2-apworld/** && 
+        // cp bl2-apworld.apworld /mnt/SSD/Archipelago/Archipelago/custom_worlds/
+        {
+            "label": "Build",
+            "args": [
+                "mkdir -p ${workspaceFolder}/out && rm -rf ${workspaceFolder}/out/bl2-apworld.apworld && cd .. && zip -r ${workspaceFolder}/out/bl2-apworld.apworld bl2-apworld/**"
+            ]
+        },
+        {
+            "label": "Deploy",
+            "args": [
+                "rm -f /mnt/SSD/Archipelago/Archipelago/custom_worlds/bl2-apworld.apworld && cp ${workspaceFolder}/out/bl2-apworld.apworld /mnt/SSD/Archipelago/Archipelago/custom_worlds/"
+            ]
+        },
+        {
+            "label": "Build & Deploy",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build",
+                "Deploy"
+            ]
+        },
+        {
+            "label": "Clear",
+            "args": [
+                "rm -rf /home/marco/.local/share/Steam/steamapps/compatdata/49520/pfx/drive_c/users/steamuser/AppData/Local/BL2Archipelago"
+            ]
+        }
+    ]
+}

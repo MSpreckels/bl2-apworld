@@ -4,7 +4,6 @@ import os
 import json
 from CommonClient import CommonContext, gui_enabled, ClientCommandProcessor, logger, get_base_parser, server_loop
 from NetUtils import NetworkItem
-from .Locations import lookup_id_to_name
 
 class BL2CommandProcessor(ClientCommandProcessor):
     def _cmd_bl2(self):
