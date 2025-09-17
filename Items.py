@@ -26,7 +26,7 @@ def get_items_by_category(category: str) -> Dict[str, BL2ItemData]:
 item_table: Dict[str, BL2ItemData] = {}
 
 # Victory item (special case)
-item_table["Victory"] = BL2ItemData("Victory", code=None, classification=ItemClassification.progression)
+item_table["Victory"] = BL2ItemData("Victory", code=1, classification=ItemClassification.progression)
 
 # Load items from unlocks section
 for item_data in get_unlocks():
@@ -40,7 +40,7 @@ for item_data in get_unlocks():
     classification = type_mapping.get(item_data["type"], ItemClassification.filler)
     code = item_data["full_id"]
     max_quantity = 1 if "count" not in item_data else item_data["count"]
-    
+
     # Determine category based on type and name
     if item_data["type"] == "progression":
         category = "Progression"

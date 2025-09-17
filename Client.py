@@ -4,6 +4,7 @@ import os
 import json
 from CommonClient import CommonContext, gui_enabled, ClientCommandProcessor, logger, get_base_parser, server_loop
 from NetUtils import NetworkItem
+from .shared.bl2_data import find_location_by_id
 
 class BL2CommandProcessor(ClientCommandProcessor):
     def _cmd_bl2(self):
@@ -81,17 +82,21 @@ class BL2Context(CommonContext):
                 
                 # Write item files for BL2 mod to read
                 for item in args['items']:
-                    item_filename = f"AP_{self.item_num}.item"
+
+                    data = {
+                        "item_id": NetworkItem(*item).item,
+                        "location_id": NetworkItem(*item).location,
+                        "player": self.player_names[NetworkItem(*item).player]
+                    }
+                    item_filename = f"AP{data["item_id"]}"
                     
                     # Check if file already exists
-                    item_path = os.path.join(self.game_communication_path, item_filename)
+                    item_path = os.path.join(self.seed_path, item_filename)
                     if not os.path.exists(item_path):
                         try:
                             with open(item_path, 'w') as f:
                                 # Write item data in format: item_id\nlocation_id\nplayer_name
-                                f.write(f"{NetworkItem(*item).item}\n")
-                                f.write(f"{NetworkItem(*item).location}\n") 
-                                f.write(f"{NetworkItem(*item).player}")
+                                json.dump(data, f)
                             
                             logger.info(f"Wrote item file: {item_filename}")
                             self.item_num += 1
@@ -198,10 +203,7 @@ async def game_watcher(ctx: BL2Context):
             try:
                 for root, dirs, files in os.walk(ctx.seed_path):
                     for file in files:
-                        # logger.info(f"DEBUG {file}!")
-                        # Location check files (format: send12345)
                         if file.startswith("check"):
-                            # logger.info(f"Found check {file}")
                             json = convert_json_to_map(os.path.join(root, file))
                             sending.append(json["id"])
                         if file == "victory":
