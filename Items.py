@@ -1,7 +1,10 @@
+import json
+import os
 from typing import Dict, NamedTuple, Optional, Set
 
 from BaseClasses import Item, ItemClassification
 
+from .shared.bl2_data import get_unlocks, BASE_ID
 
 class BL2Item(Item):
     game: str = "Borderlands 2"
@@ -20,12 +23,41 @@ def get_items_by_category(category: str) -> Dict[str, BL2ItemData]:
 
     return item_dict
 
-item_table: Dict[str, BL2ItemData] = { 
-    "Victory": BL2ItemData("VIC", code = 333_0000, classification = ItemClassification.progression, ),
-    "Main Quest": BL2ItemData("Quest", code = 333_0000, classification = ItemClassification.progression, max_quantity = 18),
-    "Skillpoint": BL2ItemData("Item", code = 333_0001, classification = ItemClassification.filler, max_quantity = 35),
-    # "Skillpoint Fill": BL2ItemData("Filler", code = 333_0001, classification = ItemClassification.filler, max_quantity = 100),
-}
+item_table: Dict[str, BL2ItemData] = {}
+
+# Victory item (special case)
+item_table["Victory"] = BL2ItemData("Victory", code=None, classification=ItemClassification.progression)
+
+# Load items from unlocks section
+for item_data in get_unlocks():
+    # Map type to ItemClassification
+    type_mapping = {
+        "progression": ItemClassification.progression,
+        "useful": ItemClassification.useful,
+        "filler": ItemClassification.filler
+    }
+    
+    classification = type_mapping.get(item_data["type"], ItemClassification.filler)
+    code = item_data["full_id"]
+    max_quantity = 1 if "count" not in item_data else item_data["count"]
+    
+    # Determine category based on type and name
+    if item_data["type"] == "progression":
+        category = "Progression"
+    elif item_data["type"] == "useful":
+        if item_data["name"].startswith("Fast Travel"):
+            category = "FastTravel"
+        else:
+            category = "Useful"
+    else:
+        category = "Filler"
+    
+    item_table[item_data["name"]] = BL2ItemData(
+        category=category,
+        code=code,
+        classification=classification,
+        max_quantity=max_quantity
+    )
 
 item_name_groups: Dict[str, Set[str]] = {}
 for item in item_table.keys():

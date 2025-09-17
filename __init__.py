@@ -4,7 +4,8 @@ from .Regions import create_regions
 from .Rules import set_rules
 from .Items import BL2Item, BL2ItemData, get_items_by_category, item_name_groups, item_name_to_id, create_item
 from typing import List
-from .shared.bl2_data import create_name_to_id_lookup_table
+from .shared.bl2_data import create_name_to_id_lookup_table, get_unlocks_by_type
+import random
 
 def launch_client(*args: str):
     from .Client import launch
@@ -40,18 +41,30 @@ class BL2World(World):
     def create_items(self):
         item_pool: List[BL2Item] = []
 
-        total_locations = len(self.multiworld.get_unfilled_locations(self.player))
-
-        allstate = self.multiworld.get_all_state(False)
-        print(self.multiworld.get_reachable_locations(allstate))
 
         self.get_location("Kill The Warrior").place_locked_item(create_item(self, "Victory"))
 
-        # for i in range(18):
-        #     item_pool.append(create_item(self, "Main Quest"))
+        total_locations = len(self.multiworld.get_unfilled_locations(self.player))
 
-        while len(item_pool) < total_locations-1:
-            item_pool.append(create_item(self, "Skillpoint"))
+        progression_items = get_unlocks_by_type("progression")
+        useful = get_unlocks_by_type("useful")
+        filler = get_unlocks_by_type("filler")
+
+        for unlock in progression_items:
+            count = 1
+
+            if "count" in unlock:
+                count = unlock["count"]
+
+            for i in range(count):
+                item_pool.append(create_item(self, unlock["name"]))
+
+        for unlock in useful:
+            item_pool.append(create_item(self, unlock["name"]))
+
+        while len(item_pool) < total_locations:
+            fill = random.choice(filler)
+            item_pool.append(create_item(self, fill["name"]))
 
         self.multiworld.itempool += item_pool
     
